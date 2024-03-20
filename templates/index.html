@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chatbot</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333333;
+            margin-bottom: 30px;
+        }
+
+        form {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"] {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #cccccc;
+            border-radius: 5px 0 0 5px;
+            outline: none;
+        }
+
+        button[type="submit"], #start-rec, #stop-rec {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #ffffff;
+            border: none;
+            border-radius: 0 5px 5px 0;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        button[type="submit"]:hover, #start-rec:hover, #stop-rec:hover {
+            background-color: #0056b3;
+        }
+
+        #response_message {
+            padding: 20px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            min-height: 100px;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AI Girlfriend</h1>
+        <form id="text-message-form" method="POST" action="/send_message">
+            <input type="text" name="human_input" placeholder="Enter your message">
+            <button type="submit">Send</button>
+        </form>
+        <button id="start-rec">Start Recording</button>
+        <button id="stop-rec" class="hidden">Stop Recording</button>
+        <div id="response_message"></div>
+    </div>
+
+    <script>
+        const textMessageForm = document.getElementById('text-message-form');
+        const startRecButton = document.getElementById('start-rec');
+        const stopRecButton = document.getElementById('stop-rec');
+        const responseMessage = document.getElementById('response_message');
+
+        // Media Recorder variable and recorded chunks
+        let mediaRecorder;
+        let audioChunks = [];
+
+        textMessageForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(textMessageForm);
+            fetch('/send_message', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.text())
+            .then(data => {
+                responseMessage.innerHTML = data;
+            });
+            textMessageForm.reset();
+        });
+
+        // Start Recording
+        startRecButton.addEventListener('click', function(e) {
+            // Swap buttons
+            startRecButton.classList.add('hidden');
+            stopRecButton.classList.remove('hidden');
+
+            // Begin recording
+            navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                const options = {mimeType: 'audio/webm;codecs=opus'};
+                mediaRecorder = new MediaRecorder(stream, options);
+                mediaRecorder.start();
+                mediaRecorder.addEventListener("dataavailable", event => {
+                    audioChunks.push(event.data);
+                });
+            });
+        });
+
+        // Stop Recording
+        stopRecButton.addEventListener('click', function(e) {
+            // Swap buttons
+            startRecButton.classList.remove('hidden');
+            stopRecButton.classList.add('hidden');
+
+            // Stop recording
+            if(mediaRecorder) {
+                mediaRecorder.stop();
+                mediaRecorder.addEventListener("stop", () => {
+                    const audioBlob = new Blob(audioChunks);
+                    const formData = new FormData();
+                    formData.append('audio_input', audioBlob, 'audio.webm');
+                    console.log("formData:", formData)
+                    fetch('/send_message', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.text())
+                    .then(data => {
+                        responseMessage.innerHTML = data;
+                    });
+                    audioChunks = []; // clear the audio chunks for next recording
+                });
+            }
+        });
+    </script>
+</body>
+</html>
