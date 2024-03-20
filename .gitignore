@@ -1,0 +1,4 @@
+.env
+.vscode/settings.json
+temp_audio.webm
+*.webm
